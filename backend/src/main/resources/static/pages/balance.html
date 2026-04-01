@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Balance & Statement — NexBank</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <a href="dashboard.html" class="navbar-brand">
+        <span class="brand-icon">🏦</span> NexBank
+    </a>
+    <div class="navbar-nav">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="deposit.html">Deposit</a>
+        <a href="withdraw.html">Withdraw</a>
+        <a href="transfer.html">Transfer</a>
+        <a href="balance.html" class="active">Balance</a>
+    </div>
+    <div class="navbar-user">
+        <div class="user-avatar" id="userAvatar">?</div>
+        <span id="userName">Loading...</span>
+        <button class="btn-logout" onclick="logout()">Logout</button>
+    </div>
+</nav>
+
+<div class="main-content">
+
+    <div class="page-header">
+        <h1>Balance & Statement 📋</h1>
+        <p>Check balance and view your full transaction history</p>
+    </div>
+
+    <div id="alertBox" class="alert"></div>
+
+    <!-- Account Cards Row -->
+    <div id="accountsRow" style="margin-bottom:28px;">
+        <div class="empty-state"><div class="empty-icon">⏳</div><p>Loading accounts...</p></div>
+    </div>
+
+    <!-- Transaction History Section -->
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
+            <div>
+                <div class="card-title" style="margin-bottom:2px;">Transaction History</div>
+                <div class="card-subtitle" style="margin-bottom:0;">Full statement for selected account</div>
+            </div>
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                <select id="accountSelect" style="width:auto; padding:8px 14px; font-size:0.9rem;">
+                    <option value="">Select account...</option>
+                </select>
+                <select id="filterType" style="width:auto; padding:8px 14px; font-size:0.9rem;">
+                    <option value="ALL">All Types</option>
+                    <option value="DEPOSIT">Deposits</option>
+                    <option value="WITHDRAWAL">Withdrawals</option>
+                    <option value="TRANSFER_OUT">Transfers Out</option>
+                    <option value="TRANSFER_IN">Transfers In</option>
+                </select>
+                <button class="btn btn-primary btn-sm" onclick="loadHistory()">Load</button>
+            </div>
+        </div>
+
+        <!-- Transaction Stats Bar -->
+        <div id="txnStats" style="display:none; margin-bottom:20px;">
+            <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px;">
+                <div style="background:var(--bg); padding:12px 16px; border-radius:var(--radius-sm); text-align:center;">
+                    <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em;">Total In</div>
+                    <div id="statTotalIn" style="font-weight:700; color:var(--accent-dark); font-size:1rem; margin-top:4px;">—</div>
+                </div>
+                <div style="background:var(--bg); padding:12px 16px; border-radius:var(--radius-sm); text-align:center;">
+                    <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em;">Total Out</div>
+                    <div id="statTotalOut" style="font-weight:700; color:var(--danger); font-size:1rem; margin-top:4px;">—</div>
+                </div>
+                <div style="background:var(--bg); padding:12px 16px; border-radius:var(--radius-sm); text-align:center;">
+                    <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em;">Transactions</div>
+                    <div id="statCount" style="font-weight:700; font-size:1rem; margin-top:4px;">—</div>
+                </div>
+                <div style="background:var(--bg); padding:12px 16px; border-radius:var(--radius-sm); text-align:center;">
+                    <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em;">Current Balance</div>
+                    <div id="statBalance" style="font-weight:700; font-size:1rem; margin-top:4px;">—</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transactions Table -->
+        <div id="transactionsContainer">
+            <div class="empty-state">
+                <div class="empty-icon">📋</div>
+                <h3>Select an account</h3>
+                <p>Choose an account above and click "Load" to see transactions</p>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script src="../js/utils.js"></script>
+<script>
+    if (!requireAuth()) { /* stops */ }
+    populateNavbar();
+
+    let allTransactions = [];
+
+    // Load all accounts and render account cards
+    async function loadAccountCards() {
+        const result = await apiRequest('/accounts');
+        if (!result || !result.ok) {
+            showAlert('alertBox', 'Failed to load accounts.', 'error');
+            return;
+        }
+
+        const accounts = result.data.data || [];
+        const row = document.getElementById('accountsRow');
+        const select = document.getElementById('accountSelect');
+
+        if (accounts.length === 0) {
+            row.innerHTML = `<div class="empty-state"><div class="empty-icon">🏦</div><h3>No accounts yet</h3><p>Create an account from the dashboard</p></div>`;
+            return;
+        }
+
+        // Render account cards
+        row.innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:16px;">
+            ${accounts.map(acc => `
+                <div class="account-card" onclick="selectAccount(${acc.accountId})" style="cursor:pointer; transition:opacity 0.2s;" onmouseover="this.style.opacity='0.88'" onmouseout="this.style.opacity='1'">
+                    <div class="account-type-badge">${acc.accountType}</div>
+                    <div class="account-number">${acc.accountNumber}</div>
+                    <div class="account-balance-label">Available Balance</div>
+                    <div class="account-balance-value">${formatCurrency(acc.balance)}</div>
+                    <div style="margin-top:12px; font-size:0.78rem; opacity:0.7;">Click to view statement →</div>
+                </div>
+            `).join('')}
+        </div>`;
+
+        // Populate select
+        select.innerHTML = '<option value="">-- Select account --</option>';
+        accounts.forEach(acc => {
+            const opt = document.createElement('option');
+            opt.value = acc.accountId;
+            opt.textContent = `${acc.accountNumber} (${acc.accountType})`;
+            select.appendChild(opt);
+        });
+    }
+
+    // Called when user clicks an account card
+    function selectAccount(accountId) {
+        document.getElementById('accountSelect').value = accountId;
+        loadHistory();
+        document.getElementById('transactionsContainer').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // Load transaction history for selected account
+    async function loadHistory() {
+        const accountId = document.getElementById('accountSelect').value;
+        if (!accountId) {
+            showAlert('alertBox', 'Please select an account first.', 'error');
+            return;
+        }
+
+        document.getElementById('transactionsContainer').innerHTML =
+            `<div class="empty-state"><div class="empty-icon">⏳</div><p>Loading transactions...</p></div>`;
+
+        const result = await apiRequest(`/transactions/history/${accountId}`);
+        if (!result || !result.ok) {
+            showAlert('alertBox', 'Failed to load transactions.', 'error');
+            return;
+        }
+
+        allTransactions = result.data.data || [];
+        renderTransactions(allTransactions);
+        computeStats(allTransactions);
+    }
+
+    // Apply filter and re-render
+    document.getElementById('filterType').addEventListener('change', function() {
+        if (allTransactions.length === 0) return;
+        const filter = this.value;
+        const filtered = filter === 'ALL'
+            ? allTransactions
+            : allTransactions.filter(t => t.type === filter);
+        renderTransactions(filtered);
+    });
+
+    function computeStats(transactions) {
+        let totalIn = 0, totalOut = 0;
+        transactions.forEach(t => {
+            if (t.type === 'DEPOSIT' || t.type === 'TRANSFER_IN') totalIn += parseFloat(t.amount);
+            else totalOut += parseFloat(t.amount);
+        });
+
+        document.getElementById('statTotalIn').textContent  = formatCurrency(totalIn);
+        document.getElementById('statTotalOut').textContent = formatCurrency(totalOut);
+        document.getElementById('statCount').textContent    = transactions.length;
+
+        // Balance is balanceAfter of the most recent transaction
+        if (transactions.length > 0) {
+            document.getElementById('statBalance').textContent = formatCurrency(transactions[0].balanceAfter);
+        }
+        document.getElementById('txnStats').style.display = 'block';
+    }
+
+    function renderTransactions(transactions) {
+        const container = document.getElementById('transactionsContainer');
+
+        if (transactions.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">📭</div>
+                    <h3>No transactions found</h3>
+                    <p>No transactions match the selected filter</p>
+                </div>`;
+            return;
+        }
+
+        const rows = transactions.map(txn => {
+            const badge = getTransactionBadge(txn.type);
+            const isCredit = txn.type === 'DEPOSIT' || txn.type === 'TRANSFER_IN';
+            return `
+                <tr>
+                    <td style="font-size:0.82rem; color:var(--text-muted);">${formatDate(txn.timestamp)}</td>
+                    <td><span class="badge ${badge.cls}">${badge.icon} ${badge.label}</span></td>
+                    <td style="font-size:0.88rem; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${txn.description || '—'}</td>
+                    <td class="${isCredit ? 'amount-positive' : 'amount-negative'}" style="text-align:right; font-size:0.95rem;">
+                        ${isCredit ? '+' : '-'}${formatCurrency(txn.amount)}
+                    </td>
+                    <td style="text-align:right; font-size:0.88rem; color:var(--text-muted);">${formatCurrency(txn.balanceAfter)}</td>
+                </tr>
+            `;
+        }).join('');
+
+        container.innerHTML = `
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date & Time</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                            <th style="text-align:right">Amount</th>
+                            <th style="text-align:right">Balance After</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </div>
+            <div style="margin-top:14px; font-size:0.82rem; color:var(--text-muted); text-align:right;">
+                Showing ${transactions.length} transaction(s)
+            </div>
+        `;
+    }
+
+    loadAccountCards();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register — NexBank</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body class="auth-page">
+
+<div class="auth-card">
+
+    <div class="auth-logo">
+        <div class="logo-icon">🏦</div>
+        <h1>NexBank</h1>
+        <p>Secure Online Banking</p>
+    </div>
+
+    <h2>Create your account</h2>
+    <p class="subtitle">Join thousands of satisfied customers</p>
+
+    <div id="alertBox" class="alert"></div>
+
+    <form id="registerForm">
+
+        <div class="form-group">
+            <label for="name">Full Name</label>
+            <input
+                type="text"
+                id="name"
+                placeholder="John Doe"
+                required
+                minlength="2"
+            />
+        </div>
+
+        <div class="form-group">
+            <label for="email">Email Address</label>
+            <input
+                type="email"
+                id="email"
+                placeholder="you@example.com"
+                required
+            />
+        </div>
+
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input
+                type="password"
+                id="password"
+                placeholder="At least 6 characters"
+                required
+                minlength="6"
+            />
+        </div>
+
+        <div class="form-group">
+            <label for="confirmPassword">Confirm Password</label>
+            <input
+                type="password"
+                id="confirmPassword"
+                placeholder="Re-enter your password"
+                required
+            />
+        </div>
+
+        <button type="submit" id="registerBtn" class="btn btn-primary">
+            Create Account
+        </button>
+
+    </form>
+
+    <div class="divider"><span>or</span></div>
+
+    <p style="text-align:center; font-size:0.9rem; color:var(--text-muted)">
+        Already have an account?
+        <a href="../index.html"><strong>Sign In</strong></a>
+    </p>
+
+</div>
+
+<script src="../js/utils.js"></script>
+<script>
+    // Redirect to dashboard if already logged in
+    if (getToken()) {
+        window.location.href = 'dashboard.html';
+    }
+
+    document.getElementById('registerForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        hideAlert('alertBox');
+
+        const name            = document.getElementById('name').value.trim();
+        const email           = document.getElementById('email').value.trim();
+        const password        = document.getElementById('password').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+
+        // Client-side validation
+        if (!name || !email || !password || !confirmPassword) {
+            showAlert('alertBox', 'All fields are required.', 'error');
+            return;
+        }
+
+        if (name.length < 2) {
+            showAlert('alertBox', 'Name must be at least 2 characters.', 'error');
+            return;
+        }
+
+        if (!email.includes('@')) {
+            showAlert('alertBox', 'Please enter a valid email address.', 'error');
+            return;
+        }
+
+        if (password.length < 6) {
+            showAlert('alertBox', 'Password must be at least 6 characters.', 'error');
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            showAlert('alertBox', 'Passwords do not match.', 'error');
+            return;
+        }
+
+        setButtonLoading('registerBtn', true);
+
+        const result = await apiRequest('/auth/register', 'POST', { name, email, password });
+
+        if (result.error) {
+            showAlert('alertBox', result.error, 'error');
+        } else if (result.ok && result.data.success) {
+            // Auto login after registration
+            setToken(result.data.data.token);
+            setUser({
+                name:   result.data.data.name,
+                email:  result.data.data.email,
+                userId: result.data.data.userId,
+                role:   result.data.data.role
+            });
+
+            showAlert('alertBox', 'Account created! Redirecting to dashboard...', 'success');
+            setTimeout(() => { window.location.href = 'dashboard.html'; }, 1000);
+        } else {
+            // Show validation errors or server message
+            let errorMsg = 'Registration failed.';
+            if (result.data?.data && typeof result.data.data === 'object') {
+                const errors = Object.values(result.data.data).join(' | ');
+                errorMsg = errors;
+            } else if (result.data?.message) {
+                errorMsg = result.data.message;
+            }
+            showAlert('alertBox', errorMsg, 'error');
+        }
+
+        setButtonLoading('registerBtn', false, 'Create Account');
+        }
+    });
+</script>
+
+</body>
+</html>

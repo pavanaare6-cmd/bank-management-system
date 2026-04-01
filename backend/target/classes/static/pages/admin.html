@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - NexBank</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <h1 class="nav-logo">🏦 NexBank Admin</h1>
+            <div class="nav-links">
+                <a href="#" onclick="showSection('users')">Users</a>
+                <a href="#" onclick="showSection('accounts')">Accounts</a>
+                <a href="#" onclick="showSection('transactions')">Transactions</a>
+                <a href="#" onclick="logout()">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="dashboard-header">
+            <h2>Admin Dashboard</h2>
+            <p>Welcome, Admin! Here you can view all system activities.</p>
+        </div>
+
+        <!-- Users Section -->
+        <div id="users-section" class="section active">
+            <h3>All Users</h3>
+            <div class="table-container">
+                <table id="users-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-tbody">
+                        <tr>
+                            <td colspan="4">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Accounts Section -->
+        <div id="accounts-section" class="section">
+            <h3>All Accounts</h3>
+            <div class="table-container">
+                <table id="accounts-table">
+                    <thead>
+                        <tr>
+                            <th>Account ID</th>
+                            <th>Account Number</th>
+                            <th>Balance</th>
+                            <th>Type</th>
+                            <th>Owner</th>
+                        </tr>
+                    </thead>
+                    <tbody id="accounts-tbody">
+                        <tr>
+                            <td colspan="5">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Transactions Section -->
+        <div id="transactions-section" class="section">
+            <h3>All Transactions</h3>
+            <div class="table-container">
+                <table id="transactions-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Type</th>
+                            <th>Amount</th>
+                            <th>Balance After</th>
+                            <th>Description</th>
+                            <th>Account</th>
+                            <th>Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transactions-tbody">
+                        <tr>
+                            <td colspan="7">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/utils.js"></script>
+    <script>
+        // Check if admin is logged in
+        if (!requireAuth()) return;
+
+        // Load data on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadUsers();
+            loadAccounts();
+            loadTransactions();
+        });
+
+        function showSection(sectionName) {
+            // Hide all sections
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.remove('active');
+            });
+
+            // Show selected section
+            document.getElementById(sectionName + '-section').classList.add('active');
+        }
+
+        async function loadUsers() {
+            try {
+                const response = await fetch('/api/admin/users', {
+                    headers: {
+                        'Authorization': 'Bearer ' + getToken()
+                    }
+                });
+
+                if (response.ok) {
+                    const users = await response.json();
+                    displayUsers(users);
+                } else {
+                    document.getElementById('users-tbody').innerHTML =
+                        '<tr><td colspan="4">Failed to load users</td></tr>';
+                }
+            } catch (error) {
+                console.error('Error loading users:', error);
+                document.getElementById('users-tbody').innerHTML =
+                    '<tr><td colspan="4">Error loading users</td></tr>';
+            }
+        }
+
+        function displayUsers(users) {
+            const tbody = document.getElementById('users-tbody');
+            tbody.innerHTML = '';
+
+            users.forEach(user => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${user.id}</td>
+                    <td>${user.name}</td>
+                    <td>${user.email}</td>
+                    <td>${user.role}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        async function loadAccounts() {
+            try {
+                const response = await fetch('/api/admin/accounts', {
+                    headers: {
+                        'Authorization': 'Bearer ' + getToken()
+                    }
+                });
+
+                if (response.ok) {
+                    const accounts = await response.json();
+                    displayAccounts(accounts);
+                } else {
+                    document.getElementById('accounts-tbody').innerHTML =
+                        '<tr><td colspan="5">Failed to load accounts</td></tr>';
+                }
+            } catch (error) {
+                console.error('Error loading accounts:', error);
+                document.getElementById('accounts-tbody').innerHTML =
+                    '<tr><td colspan="5">Error loading accounts</td></tr>';
+            }
+        }
+
+        function displayAccounts(accounts) {
+            const tbody = document.getElementById('accounts-tbody');
+            tbody.innerHTML = '';
+
+            accounts.forEach(account => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${account.accountId}</td>
+                    <td>${account.accountNumber}</td>
+                    <td>$${account.balance}</td>
+                    <td>${account.accountType}</td>
+                    <td>${account.ownerName} (${account.ownerEmail})</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        async function loadTransactions() {
+            try {
+                const response = await fetch('/api/admin/transactions', {
+                    headers: {
+                        'Authorization': 'Bearer ' + getToken()
+                    }
+                });
+
+                if (response.ok) {
+                    const transactions = await response.json();
+                    displayTransactions(transactions);
+                } else {
+                    document.getElementById('transactions-tbody').innerHTML =
+                        '<tr><td colspan="7">Failed to load transactions</td></tr>';
+                }
+            } catch (error) {
+                console.error('Error loading transactions:', error);
+                document.getElementById('transactions-tbody').innerHTML =
+                    '<tr><td colspan="7">Error loading transactions</td></tr>';
+            }
+        }
+
+        function displayTransactions(transactions) {
+            const tbody = document.getElementById('transactions-tbody');
+            tbody.innerHTML = '';
+
+            transactions.forEach(txn => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${txn.transactionId}</td>
+                    <td>${txn.type}</td>
+                    <td>$${txn.amount}</td>
+                    <td>$${txn.balanceAfter}</td>
+                    <td>${txn.description || 'N/A'}</td>
+                    <td>${txn.accountNumber}</td>
+                    <td>${new Date(txn.timestamp).toLocaleString()}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function logout() {
+            removeToken();
+            removeUser();
+            window.location.href = '../index.html';
+        }
+    </script>
+</body>
+</html>

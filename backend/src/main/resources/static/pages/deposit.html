@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deposit — NexBank</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <a href="dashboard.html" class="navbar-brand">
+        <span class="brand-icon">🏦</span> NexBank
+    </a>
+    <div class="navbar-nav">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="deposit.html" class="active">Deposit</a>
+        <a href="withdraw.html">Withdraw</a>
+        <a href="transfer.html">Transfer</a>
+        <a href="balance.html">Balance</a>
+    </div>
+    <div class="navbar-user">
+        <div class="user-avatar" id="userAvatar">?</div>
+        <span id="userName">Loading...</span>
+        <button class="btn-logout" onclick="logout()">Logout</button>
+    </div>
+</nav>
+
+<div class="main-content">
+
+    <div class="page-header">
+        <h1>Deposit Money 💵</h1>
+        <p>Add funds to your bank account</p>
+    </div>
+
+    <div class="form-page">
+
+        <!-- Success/Error Alert -->
+        <div id="alertBox" class="alert"></div>
+
+        <!-- Deposit Card -->
+        <div class="card">
+            <div class="card-title">Make a Deposit</div>
+            <div class="card-subtitle">Funds will be available immediately</div>
+
+            <form id="depositForm">
+
+                <!-- Account Selector -->
+                <div class="form-group">
+                    <label for="accountSelect">Select Account</label>
+                    <select id="accountSelect" required>
+                        <option value="">Loading accounts...</option>
+                    </select>
+                </div>
+
+                <!-- Selected Account Balance Preview -->
+                <div id="balancePreview" style="display:none; margin-bottom:20px;">
+                    <div class="account-card" style="padding:20px 24px;">
+                        <div class="account-number" id="previewAccNum">—</div>
+                        <div class="account-balance-label">Current Balance</div>
+                        <div class="account-balance-value" id="previewBalance">—</div>
+                    </div>
+                </div>
+
+                <!-- Amount Input -->
+                <div class="form-group">
+                    <label for="amount">Deposit Amount (₹)</label>
+                    <input
+                        type="number"
+                        id="amount"
+                        placeholder="Enter amount (e.g. 1000)"
+                        min="1"
+                        step="0.01"
+                        required
+                    />
+                </div>
+
+                <!-- Description (optional) -->
+                <div class="form-group">
+                    <label for="description">Description <span style="color:var(--text-muted);font-weight:400">(optional)</span></label>
+                    <input
+                        type="text"
+                        id="description"
+                        placeholder="e.g. Salary, Cash deposit"
+                        maxlength="100"
+                    />
+                </div>
+
+                <button type="submit" id="depositBtn" class="btn btn-accent">
+                    💵 Deposit Now
+                </button>
+
+            </form>
+        </div>
+
+        <!-- Post-transaction summary (shown after success) -->
+        <div id="successSummary" style="display:none;" class="card" style="margin-top:20px;">
+            <div style="text-align:center; padding:12px 0;">
+                <div style="font-size:3rem; margin-bottom:12px;">✅</div>
+                <h3 style="font-size:1.2rem; margin-bottom:6px;">Deposit Successful!</h3>
+                <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:20px;">Your funds have been added</p>
+                <div style="background:var(--bg); border-radius:var(--radius-sm); padding:16px; margin-bottom:20px; text-align:left;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                        <span style="color:var(--text-muted); font-size:0.85rem;">Amount Deposited</span>
+                        <span id="summaryAmount" style="font-weight:700; color:var(--accent-dark)">—</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                        <span style="color:var(--text-muted); font-size:0.85rem;">New Balance</span>
+                        <span id="summaryBalance" style="font-weight:700;">—</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between;">
+                        <span style="color:var(--text-muted); font-size:0.85rem;">Transaction ID</span>
+                        <span id="summaryTxnId" style="font-size:0.85rem; color:var(--text-muted);">—</span>
+                    </div>
+                </div>
+                <div style="display:flex; gap:12px;">
+                    <button class="btn btn-primary btn-sm" style="flex:1" onclick="resetForm()">Make Another</button>
+                    <a href="dashboard.html" class="btn btn-outline btn-sm" style="flex:1">Dashboard</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick amount buttons -->
+        <div class="card" style="margin-top:20px;">
+            <div class="card-title">Quick Amounts</div>
+            <div class="card-subtitle">Tap to fill the amount</div>
+            <div style="display:grid; grid-template-columns: repeat(4,1fr); gap:10px; margin-top:4px;">
+                <button class="btn btn-outline btn-sm" onclick="setAmount(500)">₹500</button>
+                <button class="btn btn-outline btn-sm" onclick="setAmount(1000)">₹1,000</button>
+                <button class="btn btn-outline btn-sm" onclick="setAmount(5000)">₹5,000</button>
+                <button class="btn btn-outline btn-sm" onclick="setAmount(10000)">₹10,000</button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script src="../js/utils.js"></script>
+<script>
+    if (!requireAuth()) { /* stops */ }
+    populateNavbar();
+
+    // Account data cache
+    let accountsCache = [];
+
+    // Load accounts into selector on page load
+    async function loadAccounts() {
+        const result = await apiRequest('/accounts');
+        if (!result || !result.ok) {
+            showAlert('alertBox', 'Failed to load accounts. Please refresh.', 'error');
+            return;
+        }
+        accountsCache = result.data.data || [];
+        const select = document.getElementById('accountSelect');
+        select.innerHTML = '<option value="">-- Select an Account --</option>';
+        accountsCache.forEach(acc => {
+            const opt = document.createElement('option');
+            opt.value = acc.accountId;
+            opt.textContent = `${acc.accountNumber} (${acc.accountType}) — ${formatCurrency(acc.balance)}`;
+            select.appendChild(opt);
+        });
+    }
+
+    // Show balance preview when account is selected
+    document.getElementById('accountSelect').addEventListener('change', function() {
+        const accountId = this.value;
+        const preview = document.getElementById('balancePreview');
+        if (!accountId) { preview.style.display = 'none'; return; }
+
+        const acc = accountsCache.find(a => a.accountId == accountId);
+        if (acc) {
+            document.getElementById('previewAccNum').textContent = acc.accountNumber + ' · ' + acc.accountType;
+            document.getElementById('previewBalance').textContent = formatCurrency(acc.balance);
+            preview.style.display = 'block';
+        }
+    });
+
+    // Quick amount setter
+    function setAmount(value) {
+        document.getElementById('amount').value = value;
+    }
+
+    // Handle deposit form submission
+    document.getElementById('depositForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        hideAlert('alertBox');
+
+        const accountId   = document.getElementById('accountSelect').value;
+        const amount      = parseFloat(document.getElementById('amount').value);
+        const description = document.getElementById('description').value.trim();
+
+        // Validate
+        if (!accountId) { showAlert('alertBox', 'Please select an account.', 'error'); return; }
+        if (!amount || amount <= 0) { showAlert('alertBox', 'Please enter a valid amount.', 'error'); return; }
+        if (amount > 1000000) { showAlert('alertBox', 'Maximum single deposit is ₹10,00,000.', 'error'); return; }
+
+        setButtonLoading('depositBtn', true);
+
+        try {
+            const result = await apiRequest(
+                `/transactions/deposit/${accountId}`,
+                'POST',
+                { amount, description: description || 'Deposit' }
+            );
+
+            if (result && result.ok) {
+                const txn = result.data.data;
+                // Show success summary
+                document.getElementById('summaryAmount').textContent  = formatCurrency(amount);
+                document.getElementById('summaryBalance').textContent = formatCurrency(txn.balanceAfter);
+                document.getElementById('summaryTxnId').textContent   = '#TXN' + txn.transactionId;
+
+                document.getElementById('depositForm').style.display = 'none';
+                document.getElementById('successSummary').style.display = 'block';
+                showAlert('alertBox', result.data.message, 'success');
+            } else {
+                showAlert('alertBox', result.data.message || 'Deposit failed.', 'error');
+            }
+        } catch (err) {
+            showAlert('alertBox', 'Network error. Is the backend running?', 'error');
+        } finally {
+            setButtonLoading('depositBtn', false, '💵 Deposit Now');
+        }
+    });
+
+    function resetForm() {
+        document.getElementById('depositForm').reset();
+        document.getElementById('depositForm').style.display = 'block';
+        document.getElementById('successSummary').style.display = 'none';
+        document.getElementById('balancePreview').style.display = 'none';
+        loadAccounts();
+    }
+
+    loadAccounts();
+</script>
+
+</body>
+</html>

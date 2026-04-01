@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transfer — NexBank</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <a href="dashboard.html" class="navbar-brand">
+        <span class="brand-icon">🏦</span> NexBank
+    </a>
+    <div class="navbar-nav">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="deposit.html">Deposit</a>
+        <a href="withdraw.html">Withdraw</a>
+        <a href="transfer.html" class="active">Transfer</a>
+        <a href="balance.html">Balance</a>
+    </div>
+    <div class="navbar-user">
+        <div class="user-avatar" id="userAvatar">?</div>
+        <span id="userName">Loading...</span>
+        <button class="btn-logout" onclick="logout()">Logout</button>
+    </div>
+</nav>
+
+<div class="main-content">
+
+    <div class="page-header">
+        <h1>Transfer Money ↔️</h1>
+        <p>Send money to any NexBank account instantly</p>
+    </div>
+
+    <div class="form-page">
+
+        <div id="alertBox" class="alert"></div>
+
+        <div class="card">
+            <div class="card-title">Send Money</div>
+            <div class="card-subtitle">Transfers are instant and free</div>
+
+            <form id="transferForm">
+
+                <!-- From Account -->
+                <div class="form-group">
+                    <label for="fromAccount">From Account</label>
+                    <select id="fromAccount" required>
+                        <option value="">Loading accounts...</option>
+                    </select>
+                </div>
+
+                <!-- From balance display -->
+                <div id="fromBalancePreview" style="display:none; margin-bottom:20px;">
+                    <div style="background:var(--bg); border-radius:var(--radius-sm); padding:12px 16px; border:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:0.85rem; color:var(--text-muted);">Available Balance</span>
+                        <span id="fromBalance" style="font-weight:700; color:var(--primary); font-size:1.05rem;">—</span>
+                    </div>
+                </div>
+
+                <!-- Visual arrow -->
+                <div style="text-align:center; margin:4px 0 20px; font-size:1.5rem; color:var(--text-muted);">⬇️</div>
+
+                <!-- To Account Number -->
+                <div class="form-group">
+                    <label for="targetAccountNumber">Recipient Account Number</label>
+                    <input
+                        type="text"
+                        id="targetAccountNumber"
+                        placeholder="e.g. ACC1234567"
+                        required
+                        style="text-transform:uppercase;"
+                    />
+                    <div id="recipientInfo" style="display:none; margin-top:8px; padding:10px 14px; background:#d4f4e8; border-radius:var(--radius-sm); font-size:0.85rem; color:#0d6e4b;">
+                        ✅ <span id="recipientName">—</span>
+                    </div>
+                </div>
+
+                <!-- Amount -->
+                <div class="form-group">
+                    <label for="amount">Transfer Amount (₹)</label>
+                    <input
+                        type="number"
+                        id="amount"
+                        placeholder="Enter amount to transfer"
+                        min="1"
+                        step="0.01"
+                        required
+                    />
+                    <div id="insufficientWarning" style="display:none; color:var(--danger); font-size:0.82rem; margin-top:6px;">
+                        ⚠️ Amount exceeds available balance
+                    </div>
+                </div>
+
+                <!-- Description -->
+                <div class="form-group">
+                    <label for="description">Description <span style="color:var(--text-muted);font-weight:400">(optional)</span></label>
+                    <input
+                        type="text"
+                        id="description"
+                        placeholder="e.g. Rent, Gift, Reimbursement"
+                        maxlength="100"
+                    />
+                </div>
+
+                <!-- Transfer summary before submit -->
+                <div id="transferSummaryPreview" style="display:none; margin-bottom:20px; padding:16px; background:var(--bg); border-radius:var(--radius-sm); border:1px solid var(--border);">
+                    <div style="font-size:0.8rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-muted); margin-bottom:12px;">Transfer Summary</div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                        <span style="font-size:0.85rem; color:var(--text-muted);">You send</span>
+                        <span id="summaryPreviewAmount" style="font-weight:700;">—</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between;">
+                        <span style="font-size:0.85rem; color:var(--text-muted);">To account</span>
+                        <span id="summaryPreviewTarget" style="font-size:0.85rem; font-family:monospace;">—</span>
+                    </div>
+                </div>
+
+                <button type="submit" id="transferBtn" class="btn btn-primary">
+                    ↔️ Transfer Now
+                </button>
+
+            </form>
+        </div>
+
+        <!-- Success Summary -->
+        <div id="successSummary" style="display:none;" class="card" style="margin-top:20px;">
+            <div style="text-align:center; padding:12px 0;">
+                <div style="font-size:3rem; margin-bottom:12px;">✅</div>
+                <h3 style="font-size:1.2rem; margin-bottom:6px;">Transfer Successful!</h3>
+                <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:20px;">Money sent instantly</p>
+                <div style="background:var(--bg); border-radius:var(--radius-sm); padding:16px; margin-bottom:20px; text-align:left;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                        <span style="color:var(--text-muted); font-size:0.85rem;">Amount Sent</span>
+                        <span id="summaryAmount" style="font-weight:700; color:var(--primary);">—</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                        <span style="color:var(--text-muted); font-size:0.85rem;">Sent To</span>
+                        <span id="summarySentTo" style="font-size:0.85rem; font-family:monospace;">—</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                        <span style="color:var(--text-muted); font-size:0.85rem;">Your New Balance</span>
+                        <span id="summaryBalance" style="font-weight:700;">—</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between;">
+                        <span style="color:var(--text-muted); font-size:0.85rem;">Transaction ID</span>
+                        <span id="summaryTxnId" style="font-size:0.85rem; color:var(--text-muted);">—</span>
+                    </div>
+                </div>
+                <div style="display:flex; gap:12px;">
+                    <button class="btn btn-primary btn-sm" style="flex:1" onclick="resetForm()">New Transfer</button>
+                    <a href="dashboard.html" class="btn btn-outline btn-sm" style="flex:1">Dashboard</a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script src="../js/utils.js"></script>
+<script>
+    if (!requireAuth()) { /* stops */ }
+    populateNavbar();
+
+    let accountsCache = [];
+    let selectedBalance = 0;
+
+    async function loadAccounts() {
+        const result = await apiRequest('/accounts');
+        if (!result || !result.ok) {
+            showAlert('alertBox', 'Failed to load accounts.', 'error');
+            return;
+        }
+        accountsCache = result.data.data || [];
+        const select = document.getElementById('fromAccount');
+        select.innerHTML = '<option value="">-- Select your account --</option>';
+        accountsCache.forEach(acc => {
+            const opt = document.createElement('option');
+            opt.value = acc.accountId;
+            opt.textContent = `${acc.accountNumber} (${acc.accountType}) — ${formatCurrency(acc.balance)}`;
+            select.appendChild(opt);
+        });
+    }
+
+    document.getElementById('fromAccount').addEventListener('change', function() {
+        const accountId = this.value;
+        const preview = document.getElementById('fromBalancePreview');
+        if (!accountId) { preview.style.display = 'none'; selectedBalance = 0; return; }
+        const acc = accountsCache.find(a => a.accountId == accountId);
+        if (acc) {
+            selectedBalance = parseFloat(acc.balance);
+            document.getElementById('fromBalance').textContent = formatCurrency(acc.balance);
+            preview.style.display = 'block';
+        }
+        updateSummaryPreview();
+    });
+
+    // Auto-uppercase account number
+    document.getElementById('targetAccountNumber').addEventListener('input', function() {
+        this.value = this.value.toUpperCase();
+        document.getElementById('recipientInfo').style.display = 'none';
+        updateSummaryPreview();
+    });
+
+    document.getElementById('amount').addEventListener('input', function() {
+        const warning = document.getElementById('insufficientWarning');
+        const val = parseFloat(this.value);
+        warning.style.display = (selectedBalance > 0 && val > selectedBalance) ? 'block' : 'none';
+        updateSummaryPreview();
+    });
+
+    function updateSummaryPreview() {
+        const amount = parseFloat(document.getElementById('amount').value);
+        const target = document.getElementById('targetAccountNumber').value;
+        const preview = document.getElementById('transferSummaryPreview');
+        if (amount > 0 && target.length >= 6) {
+            document.getElementById('summaryPreviewAmount').textContent = formatCurrency(amount);
+            document.getElementById('summaryPreviewTarget').textContent = target;
+            preview.style.display = 'block';
+        } else {
+            preview.style.display = 'none';
+        }
+    }
+
+    document.getElementById('transferForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        hideAlert('alertBox');
+
+        const fromAccountId       = document.getElementById('fromAccount').value;
+        const targetAccountNumber = document.getElementById('targetAccountNumber').value.trim();
+        const amount              = parseFloat(document.getElementById('amount').value);
+        const description         = document.getElementById('description').value.trim();
+
+        if (!fromAccountId) { showAlert('alertBox', 'Please select your account.', 'error'); return; }
+        if (!targetAccountNumber) { showAlert('alertBox', 'Please enter the recipient account number.', 'error'); return; }
+        if (!amount || amount <= 0) { showAlert('alertBox', 'Please enter a valid amount.', 'error'); return; }
+        if (selectedBalance > 0 && amount > selectedBalance) {
+            showAlert('alertBox', `Insufficient funds. Available: ${formatCurrency(selectedBalance)}`, 'error');
+            return;
+        }
+
+        // Check if transferring to own account
+        const fromAcc = accountsCache.find(a => a.accountId == fromAccountId);
+        if (fromAcc && fromAcc.accountNumber === targetAccountNumber) {
+            showAlert('alertBox', 'You cannot transfer to the same account.', 'error');
+            return;
+        }
+
+        setButtonLoading('transferBtn', true);
+
+        try {
+            const result = await apiRequest(
+                `/transactions/transfer/${fromAccountId}`,
+                'POST',
+                { targetAccountNumber, amount, description: description || 'Transfer' }
+            );
+
+            if (result && result.ok) {
+                const txn = result.data.data;
+                document.getElementById('summaryAmount').textContent  = formatCurrency(amount);
+                document.getElementById('summarySentTo').textContent  = targetAccountNumber;
+                document.getElementById('summaryBalance').textContent = formatCurrency(txn.balanceAfter);
+                document.getElementById('summaryTxnId').textContent   = '#TXN' + txn.transactionId;
+
+                document.getElementById('transferForm').style.display = 'none';
+                document.getElementById('successSummary').style.display = 'block';
+                showAlert('alertBox', result.data.message, 'success');
+            } else {
+                showAlert('alertBox', result.data.message || 'Transfer failed.', 'error');
+            }
+        } catch (err) {
+            showAlert('alertBox', 'Network error. Is the backend running?', 'error');
+        } finally {
+            setButtonLoading('transferBtn', false, '↔️ Transfer Now');
+        }
+    });
+
+    function resetForm() {
+        document.getElementById('transferForm').reset();
+        document.getElementById('transferForm').style.display = 'block';
+        document.getElementById('successSummary').style.display = 'none';
+        document.getElementById('fromBalancePreview').style.display = 'none';
+        document.getElementById('transferSummaryPreview').style.display = 'none';
+        document.getElementById('insufficientWarning').style.display = 'none';
+        selectedBalance = 0;
+        loadAccounts();
+    }
+
+    loadAccounts();
+</script>
+
+</body>
+</html>

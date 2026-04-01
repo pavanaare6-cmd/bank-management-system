@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard — NexBank</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<!-- Navigation Bar -->
+<nav class="navbar">
+    <a href="dashboard.html" class="navbar-brand">
+        <span class="brand-icon">🏦</span> NexBank
+    </a>
+    <div class="navbar-nav">
+        <a href="dashboard.html" class="active">Dashboard</a>
+        <a href="deposit.html">Deposit</a>
+        <a href="withdraw.html">Withdraw</a>
+        <a href="transfer.html">Transfer</a>
+        <a href="balance.html">Balance</a>
+    </div>
+    <div class="navbar-user">
+        <div class="user-avatar" id="userAvatar">?</div>
+        <span id="userName">Loading...</span>
+        <button class="btn-logout" onclick="logout()">Logout</button>
+    </div>
+</nav>
+
+<div class="main-content">
+
+    <!-- Page Header -->
+    <div class="page-header">
+        <h1>Good day, <span id="greetName">there</span>! 👋</h1>
+        <p>Here's an overview of your banking activity</p>
+    </div>
+
+    <!-- Alert -->
+    <div id="alertBox" class="alert"></div>
+
+    <!-- Stats Row -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon green">💰</div>
+            <div class="stat-info">
+                <div class="stat-label">Total Balance</div>
+                <div class="stat-value" id="totalBalance">—</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon blue">🏧</div>
+            <div class="stat-info">
+                <div class="stat-label">Accounts</div>
+                <div class="stat-value" id="totalAccounts">—</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon orange">📊</div>
+            <div class="stat-info">
+                <div class="stat-label">Transactions</div>
+                <div class="stat-value" id="totalTransactions">—</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="card" style="margin-bottom:24px">
+        <div class="card-title">Quick Actions</div>
+        <div class="card-subtitle">Common banking operations</div>
+        <div class="quick-actions">
+            <a href="deposit.html" class="action-btn">
+                <span class="action-icon">💵</span>
+                <span class="action-label">Deposit</span>
+            </a>
+            <a href="withdraw.html" class="action-btn">
+                <span class="action-icon">🏧</span>
+                <span class="action-label">Withdraw</span>
+            </a>
+            <a href="transfer.html" class="action-btn">
+                <span class="action-icon">↔️</span>
+                <span class="action-label">Transfer</span>
+            </a>
+            <a href="balance.html" class="action-btn">
+                <span class="action-icon">📋</span>
+                <span class="action-label">Statement</span>
+            </a>
+            <a href="#" class="action-btn" id="createAccBtn">
+                <span class="action-icon">➕</span>
+                <span class="action-label">New Account</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Two Column: Accounts + Transactions -->
+    <div class="two-col">
+
+        <!-- Your Accounts -->
+        <div class="card">
+            <div class="card-title">Your Accounts</div>
+            <div class="card-subtitle">All your bank accounts</div>
+            <div id="accountsList">
+                <div class="empty-state">
+                    <div class="empty-icon">⏳</div>
+                    <p>Loading accounts...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Transactions -->
+        <div class="card">
+            <div class="card-title">Recent Transactions</div>
+            <div class="card-subtitle">Last 5 transactions</div>
+            <div id="recentTransactions">
+                <div class="empty-state">
+                    <div class="empty-icon">⏳</div>
+                    <p>Loading transactions...</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div><!-- end main-content -->
+
+<!-- Create Account Modal -->
+<div id="createAccountModal" style="
+    display:none; position:fixed; inset:0;
+    background:rgba(0,0,0,0.5); z-index:999;
+    align-items:center; justify-content:center;">
+    <div class="card" style="width:380px; max-width:90vw;">
+        <div class="card-title">Create New Account</div>
+        <div class="card-subtitle">Choose the type of account you want</div>
+        <div id="modalAlert" class="alert"></div>
+        <div class="form-group">
+            <label for="accountType">Account Type</label>
+            <select id="accountType">
+                <option value="SAVINGS">Savings Account</option>
+                <option value="CURRENT">Current Account</option>
+            </select>
+        </div>
+        <div style="display:flex; gap:12px;">
+            <button id="createAccSubmit" class="btn btn-primary" onclick="createAccount()">Create Account</button>
+            <button class="btn btn-outline" style="width:auto;flex:1" onclick="closeModal()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script src="../js/utils.js"></script>
+<script>
+    // Guard: redirect to login if not authenticated
+    if (!requireAuth()) { /* stops here */ }
+
+    // Populate navbar
+    populateNavbar();
+
+    // Greet user by first name
+    const user = getUser();
+    if (user) {
+        document.getElementById('greetName').textContent = user.name.split(' ')[0];
+
+        // Check if admin and redirect
+        if (user.role === 'ADMIN') {
+            window.location.href = 'admin.html';
+            return;
+        }
+    }
+
+    // ---- Load Dashboard Data ----
+    async function loadDashboard() {
+        try {
+            const result = await apiRequest('/accounts');
+            if (!result || !result.ok) {
+                showAlert('alertBox', 'Failed to load accounts.', 'error');
+                return;
+            }
+
+            const accounts = result.data.data || [];
+            renderAccounts(accounts);
+
+            // Calculate total balance
+            const total = accounts.reduce((sum, a) => sum + parseFloat(a.balance || 0), 0);
+            document.getElementById('totalBalance').textContent = formatCurrency(total);
+            document.getElementById('totalAccounts').textContent = accounts.length;
+
+            // Load recent transactions from first account
+            let txnCount = 0;
+            if (accounts.length > 0) {
+                const txnResult = await apiRequest(`/transactions/history/${accounts[0].accountId}`);
+                if (txnResult && txnResult.ok) {
+                    const txns = txnResult.data.data || [];
+                    txnCount = txns.length;
+                    renderRecentTransactions(txns.slice(0, 5));
+                }
+            } else {
+                document.getElementById('recentTransactions').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">💳</div>
+                        <h3>No accounts yet</h3>
+                        <p>Create an account to get started</p>
+                    </div>`;
+            }
+
+            document.getElementById('totalTransactions').textContent = txnCount;
+
+        } catch (err) {
+            showAlert('alertBox', 'Error loading dashboard: ' + err.message, 'error');
+        }
+    }
+
+    function renderAccounts(accounts) {
+        const container = document.getElementById('accountsList');
+        if (accounts.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">🏦</div>
+                    <h3>No accounts found</h3>
+                    <p>Click "New Account" to create one</p>
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = accounts.map(acc => `
+            <div class="account-card" style="margin-bottom:16px">
+                <div class="account-type-badge">${acc.accountType}</div>
+                <div class="account-number">${acc.accountNumber}</div>
+                <div class="account-balance-label">Available Balance</div>
+                <div class="account-balance-value">${formatCurrency(acc.balance)}</div>
+            </div>
+        `).join('');
+    }
+
+    function renderRecentTransactions(transactions) {
+        const container = document.getElementById('recentTransactions');
+        if (transactions.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">📭</div>
+                    <h3>No transactions yet</h3>
+                    <p>Make a deposit to get started</p>
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = transactions.map(txn => {
+            const badge = getTransactionBadge(txn.type);
+            const isCredit = txn.type === 'DEPOSIT' || txn.type === 'TRANSFER_IN';
+            return `
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
+                    <div>
+                        <span class="badge ${badge.cls}">${badge.icon} ${badge.label}</span>
+                        <div style="font-size:0.78rem;color:var(--text-muted);margin-top:4px">
+                            ${txn.description || '—'} · ${formatDate(txn.timestamp)}
+                        </div>
+                    </div>
+                    <div class="${isCredit ? 'amount-positive' : 'amount-negative'}">
+                        ${isCredit ? '+' : '-'}${formatCurrency(txn.amount)}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // ---- Create Account Modal ----
+    document.getElementById('createAccBtn').addEventListener('click', function(e) {
+        e.preventDefault();
+        document.getElementById('createAccountModal').style.display = 'flex';
+    });
+
+    function closeModal() {
+        document.getElementById('createAccountModal').style.display = 'none';
+    }
+
+    async function createAccount() {
+        const accountType = document.getElementById('accountType').value;
+        const btn = document.getElementById('createAccSubmit');
+        btn.disabled = true;
+        btn.textContent = 'Creating...';
+
+        try {
+            const result = await apiRequest('/accounts', 'POST', { accountType });
+            if (result && result.ok) {
+                showAlert('modalAlert', 'Account created successfully!', 'success');
+                setTimeout(() => { closeModal(); loadDashboard(); }, 1000);
+            } else {
+                showAlert('modalAlert', result.data.message || 'Failed to create account.', 'error');
+            }
+        } catch (err) {
+            showAlert('modalAlert', 'Error: ' + err.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Create Account';
+        }
+    }
+
+    // Load data on page load
+    loadDashboard();
+</script>
+
+</body>
+</html>

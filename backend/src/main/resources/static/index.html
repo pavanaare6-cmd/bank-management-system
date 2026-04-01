@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login — NexBank</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="auth-page">
+
+<div class="auth-card">
+
+    <!-- Logo -->
+    <div class="auth-logo">
+        <div class="logo-icon">🏦</div>
+        <h1>NexBank</h1>
+        <p>Secure Online Banking</p>
+    </div>
+
+    <h2>Welcome back</h2>
+    <p class="subtitle">Sign in to access your accounts</p>
+
+    <!-- Alert box for success/error messages -->
+    <div id="alertBox" class="alert"></div>
+
+    <!-- Login Form -->
+    <form id="loginForm">
+
+        <div class="form-group">
+            <label for="email">Email Address</label>
+            <input
+                type="email"
+                id="email"
+                placeholder="you@example.com"
+                required
+                autocomplete="email"
+            />
+        </div>
+
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input
+                type="password"
+                id="password"
+                placeholder="Enter your password"
+                required
+                autocomplete="current-password"
+            />
+        </div>
+
+        <button type="submit" id="loginBtn" class="btn btn-primary">
+            Sign In
+        </button>
+
+    </form>
+
+    <div class="divider"><span>or</span></div>
+
+    <p style="text-align:center; font-size:0.9rem; color:var(--text-muted)">
+        Don't have an account?
+        <a href="pages/register.html"><strong>Create one free</strong></a>
+    </p>
+
+</div>
+
+<script src="js/utils.js"></script>
+<script>
+    // Redirect to dashboard if already logged in
+    if (getToken()) {
+        window.location.href = 'pages/dashboard.html';
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        hideAlert('alertBox');
+
+        const email    = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+
+        // Basic client-side validation
+        if (!email || !password) {
+            showAlert('alertBox', 'Please fill in all fields.', 'error');
+            return;
+        }
+
+        if (!email.includes('@')) {
+            showAlert('alertBox', 'Please enter a valid email address.', 'error');
+            return;
+        }
+
+        setButtonLoading('loginBtn', true);
+
+        const result = await apiRequest('/auth/login', 'POST', { email, password });
+
+        if (result.error) {
+            showAlert('alertBox', result.error, 'error');
+        } else if (result.ok && result.data.success) {
+            // Save token and user info to localStorage
+            setToken(result.data.data.token);
+            setUser({
+                name:   result.data.data.name,
+                email:  result.data.data.email,
+                userId: result.data.data.userId,
+                role:   result.data.data.role
+            });
+
+            showAlert('alertBox', 'Login successful! Redirecting...', 'success');
+            setTimeout(() => { window.location.href = 'pages/dashboard.html'; }, 800);
+        } else {
+            const errorMsg = result.data?.message || 'Login failed. Please check your credentials.';
+            showAlert('alertBox', errorMsg, 'error');
+        }
+
+        setButtonLoading('loginBtn', false, 'Sign In');
+    });
+</script>
+
+</body>
+</html>
