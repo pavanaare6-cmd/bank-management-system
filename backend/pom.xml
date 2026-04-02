@@ -19,6 +19,8 @@
     <name>bank-management</name>
     <description>Bank Management System</description>
 
+    <packaging>jar</packaging>
+
     <properties>
         <java.version>17</java.version>
     </properties>
